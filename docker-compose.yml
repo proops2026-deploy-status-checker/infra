@@ -1,0 +1,111 @@
+name: deploy-status-checker
+
+networks:
+  frontend:            # public side, only api-gateway attaches here
+  backend:
+    internal: true      # no route to host or internet
+
+volumes:
+  postgres_data:
+
+services:
+  # public entry point - the only service reachable from the host
+  api-gateway:
+    build: ../api-gateway
+    image: deploy-status-checker/api-gateway:local
+    env_file: [.env.gateway]
+
+    ports:
+      - "${GATEWAY_HOST_PORT:-3000}:3000"
+
+    networks:
+      - frontend
+      - backend
+
+    depends_on:
+      deploy-service:
+        condition: service_healthy
+      log-service:
+        condition: service_healthy
+
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+    restart: unless-stopped
+
+  # source of truth for deploy status - owns deploy_db
+  deploy-service:
+    build: ../deploy-service
+    image: deploy-status-checker/deploy-service:local
+    env_file: [.env.deploy]
+
+    networks:
+      - backend
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started    # cache only, never a hard dependency
+
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+    restart: unless-stopped
+
+  # append-only deployment logs - owns log_db
+  log-service:
+    build: ../log-service
+    image: deploy-status-checker/log-service:local
+    env_file: [.env.log]
+
+    networks:
+      - backend
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3002/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+    restart: unless-stopped
+
+  # one instance, two isolated databases (deploy_db, log_db) - see init/01-databases.sh
+  postgres:
+    image: postgres:16-alpine
+    env_file: [.env.postgres]
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:ro
+
+    networks:
+      - backend
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+    restart: unless-stopped
+
+  # cache only, no persistence - deploy-service must work with this stopped
+  redis:
+    image: redis:7-alpine
+
+    networks:
+      - backend
+
+    restart: unless-stopped

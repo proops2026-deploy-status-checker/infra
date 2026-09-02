@@ -1,0 +1,5 @@
+.env
+.env.postgres
+.env.gateway
+.env.deploy
+.env.log
