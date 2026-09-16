@@ -1,4 +1,33 @@
-# Secret management scripts
+# infra/scripts
+
+## `deploy.sh`
+
+One-command release with an automatic health gate and rollback, per
+DOP-001 §7/§11 AC-01/AC-03.
+
+```
+./deploy.sh <api-gateway|deploy-service|log-service> <tag>
+```
+
+Rewrites that service's `image:` tag in `docker-compose.prod.yml`, pulls
+and restarts it (`--no-deps`, scoped to just that service), then polls its
+Docker health status (the real `/health` HEALTHCHECK) for up to 60s. For
+`api-gateway` — the only host/load-balancer-reachable service — it also
+does an external `curl` smoke test.
+
+- **On success:** commits the new tag to `docker-compose.prod.yml` (a
+  versioned record of what's currently deployed) and exits 0.
+- **On failure:** automatically reverts to the previously-deployed tag
+  (read from `docker-compose.prod.yml` before the change), restarts, and
+  re-verifies health — then exits non-zero either way, so a rolled-back
+  deploy is never silently reported as green.
+
+Requires `docker-compose.prod.yml`'s current tag to reflect what's
+actually running — don't hand-edit that file's tags outside this script
+without also restarting the service, or the "previous tag" it captures
+will be wrong.
+
+## Secret management scripts
 
 Per DOP-001 §8 and IRD-003 §6: secrets are loaded from `.env`, never
 hardcoded, and never committed (`.env` / `.env.*` are gitignored — only
