@@ -1,12 +1,12 @@
 services:
   api-gateway:
-    image: tert62/dsc-api-gateway:day12
+    image: tert62/dsc-api-gateway:b5b2e80
     build: !reset null
 
   deploy-service:
-    image: tert62/dsc-deploy-service:day12
+    image: tert62/dsc-deploy-service:1bfc6d5
     build: !reset null
 
   log-service:
-    image: tert62/dsc-log-service:day12
+    image: tert62/dsc-log-service:a0bdb91
     build: !reset null
