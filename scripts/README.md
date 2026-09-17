@@ -27,6 +27,46 @@ actually running — don't hand-edit that file's tags outside this script
 without also restarting the service, or the "previous tag" it captures
 will be wrong.
 
+## `backup-db.sh` / `restore-db.sh`
+
+Per DOP-001 §10 ("regular backups, restore testing... required") and §14
+(restore time target). No IRD currently specifies backup mechanics — see
+TIE-29/TIE-35 for the standing gap.
+
+```
+./backup-db.sh [--dir /backups] [--container <name>] [--compose-dir <path>]
+```
+
+`pg_dump -Fc` (custom format) for `deploy_db` and `log_db`, written to a
+timestamped directory under `/backups` inside the postgres container —
+bind-mounted to `infra/backups/` on the host (gitignored; these are runtime
+artifacts, not source). Prunes backup directories older than 7 days.
+
+**Schedule this daily on the actual deployment host** (not on a dev
+machine) via cron, e.g.:
+
+```
+0 3 * * * cd /path/to/infra && ./scripts/backup-db.sh >> /var/log/db-backup.log 2>&1
+```
+
+```
+./restore-db.sh <backup-timestamp> [--compose-dir <path>] [--name <container>]
+```
+
+Rehearsal/verification tool: spins up a **fresh, separate, throwaway**
+Postgres container (never the live one) using the same `init/01-databases.sh`
+so roles/grants match, then `pg_restore`s both dumps into it and prints row
+counts. Leaves the container running so you can point a real service at it
+(`DATABASE_URL` override) to confirm it starts cleanly — remove it yourself
+when done (`docker rm -f <container>`). For an actual disaster-recovery
+restore into a real replacement primary, an operator runs the same
+`pg_restore` commands by hand against that instance instead.
+
+Verified 2026-09-17: seeded 3 deploy records + 4 log entries via the real
+API, backed up, restored into a throwaway instance — row counts and content
+matched exactly, and a real `deploy-service` container started cleanly and
+reported healthy against the restored database.
+
 ## Secret management scripts
 
 Per DOP-001 §8 and IRD-003 §6: secrets are loaded from `.env`, never

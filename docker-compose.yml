@@ -88,6 +88,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init:/docker-entrypoint-initdb.d:ro
+      - ./backups:/backups
 
     networks:
       - backend
