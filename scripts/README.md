@@ -113,3 +113,35 @@ If you're bootstrapping a brand-new environment (fresh volume, nothing
 initialized yet), just run `generate-secrets.sh` before the first
 `docker compose up` — `infra/init/01-databases.sh` will create the DB roles
 with the generated passwords directly, so `rotate-db-roles.sh` isn't needed.
+
+**`01-databases.sh` only creates the databases and roles — it does not
+create any tables.** On a brand-new volume, run the migration step below
+once before starting `deploy-service`/`log-service`, or every request
+fails with `PrismaClientKnownRequestError: table does not exist`.
+
+## Database schema migrations (Prisma)
+
+Neither `deploy-service` nor `log-service` had a committed migration
+history before 2026-09-18 — schema only ever reached Postgres via manual
+`prisma db push`, which is why this broke identically on the Day 12 EC2
+deploy and again on the Day 15 Kubernetes deploy (fresh volume each time,
+same missing step). Fixed by:
+
+1. Committed `prisma/migrations/` in both service repos (real, versioned
+   migration SQL — not `db push` anymore).
+2. Both Dockerfiles gained a `migrator` build target (`FROM builder AS
+   migrator`, `CMD npx prisma migrate deploy`) — reuses the existing
+   `builder` stage, which already has the Prisma CLI the runtime image
+   deliberately omits. Never run migrations inside the runtime container.
+3. On Kubernetes: `k8s/migrate-job.yaml` in each service repo — a `Job`,
+   applied once before rolling that service's `Deployment`. On Compose/EC2:
+   build the `migrator` target and run it once the same way the Day 12
+   one-off "migrator image" did.
+
+**Still a gap — no IRD decision or ticket for this yet.** DOP-001 §10
+already requires "forward-only migrations", but no IRD says how they run,
+and there's no ticket tracking it the way `TIE-29`/`TIE-35` track the
+backup gap above. Whoever picks this up next should: (a) file a ticket,
+(b) add a short numbered Decision to IRD-001 §1 and IRD-002 §1 describing
+this migrator-stage + Job pattern, referencing that ticket — same as every
+other `(added per TIE-xx)` line in those files.
