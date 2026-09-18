@@ -138,10 +138,9 @@ same missing step). Fixed by:
    build the `migrator` target and run it once the same way the Day 12
    one-off "migrator image" did.
 
-**Still a gap — no IRD decision or ticket for this yet.** DOP-001 §10
-already requires "forward-only migrations", but no IRD says how they run,
-and there's no ticket tracking it the way `TIE-29`/`TIE-35` track the
-backup gap above. Whoever picks this up next should: (a) file a ticket,
-(b) add a short numbered Decision to IRD-001 §1 and IRD-002 §1 describing
-this migrator-stage + Job pattern, referencing that ticket — same as every
-other `(added per TIE-xx)` line in those files.
+Tracked in Linear as **TIE-36** (resolved 2026-09-18 by this fix — it had
+already been filed on 2026-09-14, independently rediscovered on the Day 15
+Kubernetes deploy before that ticket was seen). Follow-up **TIE-39** tracks
+writing this pattern into IRD-001 §1 and IRD-002 §1 as a formal Decision —
+still open, same convention as every other `(added per TIE-xx)` line in
+those files.
