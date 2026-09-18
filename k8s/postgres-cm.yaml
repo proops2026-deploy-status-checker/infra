@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-cm
+  namespace: deploy-status-checker
+data:
+  POSTGRES_USER: "postgres"
