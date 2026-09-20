@@ -1,0 +1,14 @@
+architecture: standalone
+auth:
+  password: "dev-redis-password"
+master:
+  persistence:
+    size: 1Gi
+  resourcesPreset: "nano"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi

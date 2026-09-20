@@ -1,0 +1,28 @@
+# auth.postgresPassword below is a pre-existing hardcoded dev password —
+# a real NFR-1 violation, tracked separately (TIE-40), not fixed here.
+# auth.replicationPassword is NOT set here on purpose — it's a real secret
+# and must be passed via --set-file at install/upgrade time (see
+# infra/memory/kubernetes-project.md § Apply order), never committed.
+auth:
+  postgresPassword: "dev-postgres-password"
+# architecture: replication (TIE-28) — one primary + one streaming read
+# replica. This chart has no automatic failover (that's the separate
+# postgresql-ha/repmgr chart) — promotion is a scripted, operator-triggered
+# `SELECT pg_promote();` on the replica. See infra/memory/kubernetes-project.md
+# § PostgreSQL replication & failover (TIE-28) for the full procedure.
+architecture: replication
+primary:
+  persistence:
+    size: 1Gi
+  resourcesPreset: "nano"
+  extraEnvVarsSecret: postgres-secret
+  # initdb.scripts.01-databases.sh is intentionally NOT set here — Helm values
+  # files can't `source`/include another file's contents. Pass it at install
+  # time with --set-file instead, so infra/init/01-databases.sh (also used by
+  # Docker Compose) stays the single source of truth. See README/install command
+  # in this directory or infra/memory/kubernetes-project.md.
+readReplicas:
+  replicaCount: 1
+  persistence:
+    size: 1Gi
+  resourcesPreset: "nano"
