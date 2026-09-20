@@ -1,9 +1,9 @@
 name: deploy-status-checker
 
 networks:
-  frontend:            # public side, only api-gateway attaches here
+  frontend:           
   backend:
-    internal: true      # no route to host or internet
+    internal: true     
 
 volumes:
   postgres_data:
