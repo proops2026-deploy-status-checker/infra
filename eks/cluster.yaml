@@ -1,0 +1,35 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+metadata:
+  name: dsc-tien-lab
+  region: us-west-2
+  version: "1.33"
+  # tags:
+  #   Owner: tien_nht
+  #   Email: thaotien6220052@gmail.com
+availabilityZones: [us-west-2a, us-west-2b]
+vpc:
+  nat:
+    gateway: Disable
+managedNodeGroups:
+  - name: ng-spot
+    instanceTypes: [t3.medium]
+    spot: true
+    desiredCapacity: 1
+    minSize: 1
+    maxSize: 1
+    privateNetworking: false
+    iam:
+      attachPolicyARNs:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy
+      attachPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: ec2:DescribeAvailabilityZones
+            Resource: "*"
+addons:
+  - name: aws-ebs-csi-driver
